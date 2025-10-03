@@ -1,0 +1,12 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Rrfb
+Bundle-SymbolicName: com.rizsi.rrfb
+Bundle-Version: 1.0.0.qualifier
+Bundle-Vendor: RIZSI
+Automatic-Module-Name: com.rizsi.rrfb
+Require-Bundle: hu.qgears.quickjs;bundle-version="4.0.0",
+ hu.qgears.quickjs.example.server;bundle-version="1.0.0",
+ hu.qgears.quickjs.serverside;bundle-version="1.0.0",
+ hu.qgears.quickjs.jetty;bundle-version="4.0.0",
+ hu.qgears.slf4j.consoleimpl;bundle-version="1.0.0"

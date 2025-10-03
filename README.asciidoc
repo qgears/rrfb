@@ -1,0 +1,208 @@
+= RRFB - Rizsi's Remote FrameBuffer
+
+RRFB is similar to VNC but differently optimized for latency. The protocol does not wait for acknowledgement from the client to send the next frame.
+
+== Usage
+
+=== Simplest to try
+
+----
+
+ $ java -jar rrfb.jar --connectCommand rrfb --host 127.0.0.1
+
+----
+
+Starts a web server on 0.0.0.0:9012 where RRFB is accessible. When a client connects then the rrfb program is started that will connect the client to the X desktop.
+
+If --host 127.0.0.1 is set then the web server will only be accessible from the localhost.
+
+=== Browser client
+
+ * clipboard integration does not work in Firefox but works in Chromium.
+ 
+=== Complex setup to share the desktop on the wild Internet through a web server
+
+On computer to share with RRFB create these systemd entry. This will launch rrfb and connect its stdin/stdout to the 43211 port when a client connects to it:
+
+----
+
+$ cat /etc/systemd/system/rrfb.socket
+[Unit]
+Description=RRFB
+
+[Socket]
+ListenStream=127.0.0.1:43211
+Accept=yes
+
+[Install]
+WantedBy=sockets.target
+
+ cat /etc/systemd/system/rrfb@.service
+[Unit]
+Description=RRFB
+Requires=rrfb.socket
+
+[Service]
+Type=simple
+ExecStart=/opt/qgears/rrfb
+StandardInput=socket
+StandardError=journal
+TimeoutStopSec=5
+User=qgears
+
+[Install]
+WantedBy=multi-user.target
+
+----
+
+Then on a computer that can connect to the port (through port forward, VPN etc) launch the web service:
+
+----
+# cat /etc/systemd/system/web-rrfb.service 
+[Unit]
+Description=Web RRFB
+After=network.target
+
+[Service]
+Type=simple
+User=qgears
+WorkingDirectory=/home/qgears
+ExecStart=/usr/bin/java -Dlog4j2.formatMsgNoLookups=true -Xmx128m -Xss32m -jar rrfb.jar --connectHost rrfb-host --connectPort 43211 --host 127.0.0.1 --port 9012
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+----
+
+Then the web server on 9012 has to be reverse proxied with a web server that is accessible from the wild Internet:
+
+ * Authentication and login has to be solved by the web server somehow: this is not the scope of the rrfb project.
+
+ 
+=== Known issues
+
+ * On disconnect the rrfb process sometimes gets into a 100% cpu loop (100% of a single thread). Reason is still unknown the process has to be killed manually.
+ * When the clipboard buffer is huge then it can cause performance issues.
+ * An XAUTH file is created in /tmp/x11vnc-xauth.XXXXXX. This may be a security issue on multiuser setups.
+
+=== All arguments
+
+rrfb program: has no arguments. Connects to the current X display and does all communication through stdout/stdin.
+
+rrfb.jar program argumnents and default values:
+
+----
+
+--host 0.0.0.0   : the host where the web server is bound to. Set to 127.0.0.1 to liomit access to localhost when it is set up behind a reverse proxy.
+--port 9012 : the TCP port where the web server is bound to.
+--connectCommand: empty : when set then for each client connection this program is launched to provide rrfbn feature. Must be set to the path of the rrfb binary.
+--connectHost: empty : when set then instead of launching a program to provide the rrfb connection it connects to a TCP host/port
+--connectPort: 0 : when set then instead of launching a program to provide the rrfb connection it connects to a TCP host/port
+
+----
+
+=== Components
+
+The system has 3 components:
+
+ * rrfb native program for Linux+X. This program accesses the frame buffer and injects the mouse+keyboard events
+ * rrfb.jar: this program serves the HTTP page and the Javascript to the browser and connects the rrfb streams through web socket to the client
+ * rrfb.js + HTML: this runs in the browser, connects to the rrfb stream and shows the screen and passes the input to the rrfb server.
+ 
+== Dependencies
+
+rrfb depends on X, xdo3 and runs xclip as a separate process. Uses libjson-c to parse commands.
+
+These are the package dependencies: libjson-c-dev libxdo-dev libx11
+
+
+These are the dependencies of the current rrfb binary:
+
+----
+
+$ ldd rrfb
+	linux-vdso.so.1 (0x00007007d5d41000)
+	libX11.so.6 => /lib/x86_64-linux-gnu/libX11.so.6 (0x00007007d5bd1000)
+	libXdamage.so.1 => /lib/x86_64-linux-gnu/libXdamage.so.1 (0x00007007d5bcc000)
+	libXext.so.6 => /lib/x86_64-linux-gnu/libXext.so.6 (0x00007007d5bb8000)
+	libxdo.so.3 => /lib/x86_64-linux-gnu/libxdo.so.3 (0x00007007d5baa000)
+	libXtst.so.6 => /lib/x86_64-linux-gnu/libXtst.so.6 (0x00007007d5ba2000)
+	libXfixes.so.3 => /lib/x86_64-linux-gnu/libXfixes.so.3 (0x00007007d5b98000)
+	libjson-c.so.5 => /lib/x86_64-linux-gnu/libjson-c.so.5 (0x00007007d5b84000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007007d5800000)
+	libxcb.so.1 => /lib/x86_64-linux-gnu/libxcb.so.1 (0x00007007d5b5b000)
+	libXinerama.so.1 => /lib/x86_64-linux-gnu/libXinerama.so.1 (0x00007007d5b56000)
+	libxkbcommon.so.0 => /lib/x86_64-linux-gnu/libxkbcommon.so.0 (0x00007007d5b0b000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007007d5d43000)
+	libXau.so.6 => /lib/x86_64-linux-gnu/libXau.so.6 (0x00007007d5b05000)
+	libXdmcp.so.6 => /lib/x86_64-linux-gnu/libXdmcp.so.6 (0x00007007d5afd000)
+	libbsd.so.0 => /lib/x86_64-linux-gnu/libbsd.so.0 (0x00007007d5ae7000)
+	libmd.so.0 => /lib/x86_64-linux-gnu/libmd.so.0 (0x00007007d5ad8000)
+
+----
+
+rrfb.jar has all its dependencies packed into the jar. It only depends on a Java runtime environment.
+
+== RRFB native component (server side)
+
+This is a binary program written in C that track X output and sends all changes as MQIO images.
+
+The rrfb program also reads lines of JSON that are handled as input events. Specification of the format is currently the code that generates and handles it. The events are translated to X events that are injected into the X11 event stream.
+
+All output is written to stdout.
+All input is read from stdin.
+stderr is used to write some logs to track what is happening/trace for debugging.
+
+
+== Web server (Java can be run on the server, on a third computer for example a VPS web server or on the client)
+
+When a client connects to the web page then a websocket is opened by the client JS.
+
+The server side of the websocket starts the rrfb process (either locally or remotely).
+
+The websocket handler reads all output of the rrfb program and passes it to the websocket client in 32kB sized chunks.
+
+The websocket handler reads all incoming string messages (JSON sent by the browser, it must not contain \n character) and writes them onto the input of the RRFB program. It separates the lines with a \n character.
+
+== JS in browser
+
+The JS reads all incoming WS binary messages and parses the binary messages in it. The first 8 byte of each message is a header: type+size. All messages are first read fully (known size) then processed.
+
+Image update messages contain a single MQOI file that is decoded and the result is added to the current output image. The output image is refresed on the screen (canvas element).
+
+All input of keyboard and mouse are caught. Default proessing is disabled (except for F11 which is fullscreen normally) and the event is passed to the Jave server and eventually to the RRFB program.
+
+== MQOI - modified QOI
+
+The Quiet Ok Image format was modified to support longer than 62 long runs. This is necessary in this application because it radically reduce the compressed image size for difference images when there is only a small difference on the screen. (typing, update clock, etc)
+
+Both the C reference implementation and decode.js are modified to handle this modified version of the file format.
+ 
+(Source of the js code that was modified: https://github.com/kchapelier/qoijs/blob/main/src/decode.js)
+
+== Keycode mapping
+
+The browser emits hopefully standard key names (e.code). These names are translated to Linux keycodes in the RRFB program using a static table. X11 uses linuxkeycode+8 for some reason.
+
+The advantage of this keycode mapping is that the client side keymap is ignored and only the target side kymap is used. Switching keyboard layout on the target works fine and the result is as expected.
+
+== Possible setups
+
+=== Web server accessible online, RRFB behind VPN
+
+ * Let the web server access the RRFB server
+ * Install RRFB behind a TCP port with systemd so that the program is started when anyone connects the port. The port should only be accessible by the web server
+ * Configure some kind of authorization on the web server so that only the allowed people can access the RRFB web page
+ * RRFB web page connects the port when the websocket is opened
+
+=== Over SSH
+
+ * Install rrfb to the server.
+ * Start rrfb.jar locally as web server
+ * Configure rrfb.jar so that it remote executes the rrfb command on the server using ssh
+ * Connect to the localhost:9012 using a browser
+
+ 
+
+
