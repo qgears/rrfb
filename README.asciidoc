@@ -191,7 +191,7 @@ Both the C reference implementation and decode.js are modified to handle this mo
 
 The browser emits hopefully standard key names (e.code). These names are translated to Linux keycodes in the RRFB program using a static table. X11 uses linuxkeycode+8 for some reason.
 
-The advantage of this keycode mapping is that the client side keymap is ignored and only the target side kymap is used. Switching keyboard layout on the target works fine and the result is as expected.
+The advantage of this keycode mapping is that the client side keymap is ignored and only the target side keymap is used. Switching keyboard layout on the target works fine and the result is as expected. The client key map is ingnored by the browser in my experience.
 
 == Possible setups
 
