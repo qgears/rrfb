@@ -2,6 +2,10 @@
 
 RRFB is similar to VNC but differently optimized for latency. The protocol does not wait for acknowledgement from the client to send the next frame.
 
+== Download
+
+Latest build is available here: https://rizsi.com/programs/rrfb/
+
 == Usage
 
 === Simple setup
@@ -79,9 +83,9 @@ WantedBy=multi-user.target
 
 Then the web server on 9012 has to be reverse proxied with a web server that is accessible from the wild Internet:
 
+ * https is advised to be used
  * Authentication and login has to be solved by the web server somehow: this is not the scope of the rrfb project.
 
- 
 === Known issues
 
  * On disconnect the rrfb process sometimes gets into a 100% cpu loop (100% of a single thread). Reason is still unknown the process has to be killed manually.
