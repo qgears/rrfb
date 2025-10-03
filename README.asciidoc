@@ -4,19 +4,21 @@ RRFB is similar to VNC but differently optimized for latency. The protocol does 
 
 == Usage
 
-=== Simplest to try
+=== Simple setup
 
 ----
 
- $ java -jar rrfb.jar --connectCommand rrfb --host 127.0.0.1
+ $ java -jar rrfb.jar --connectCommand rrfb
 
 ----
 
-Starts a web server on 0.0.0.0:9012 where RRFB is accessible. When a client connects then the rrfb program is started that will connect the client to the X desktop.
+Starts a web server on 127.0.0.1:9012 where RRFB is accessible. When a client connects then the rrfb program is started that will connect the client to the X desktop.
 
-If --host 127.0.0.1 is set then the web server will only be accessible from the localhost.
+If --host 0.0.0.0 is set then the web server will be accessible from remote computers too depending on the firewall and general network setup.
 
 === Browser client
+
+To access the desktop the address has to be entered into a browser. Example: http://localhost:9012/
 
  * clipboard integration does not work in Firefox but works in Chromium.
  
