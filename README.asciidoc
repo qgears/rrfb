@@ -4,7 +4,7 @@ RRFB is similar to VNC but differently optimized for latency. The protocol does 
 
 == Download
 
-Latest build is available here: https://github.com/qgears/rrfb/releases/tag/v0.1.0
+Latest build is available here: https://github.com/qgears/rrfb/releases/tag/v0.2.0
 
 == Usage
 
