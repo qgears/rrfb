@@ -2,21 +2,27 @@
 
 RRFB is similar to VNC but differently optimized for latency. The protocol does not wait for acknowledgement from the client to send the next frame.
 
+== Download
+
+Latest build is available here: https://github.com/qgears/rrfb/releases/tag/v0.1.0
+
 == Usage
 
-=== Simplest to try
+=== Simple setup
 
 ----
 
- $ java -jar rrfb.jar --connectCommand rrfb --host 127.0.0.1
+ $ java -jar rrfb.jar --connectCommand rrfb
 
 ----
 
-Starts a web server on 0.0.0.0:9012 where RRFB is accessible. When a client connects then the rrfb program is started that will connect the client to the X desktop.
+Starts a web server on 127.0.0.1:9012 where RRFB is accessible. When a client connects then the rrfb program is started that will connect the client to the X desktop.
 
-If --host 127.0.0.1 is set then the web server will only be accessible from the localhost.
+If --host 0.0.0.0 is set then the web server will be accessible from remote computers too depending on the firewall and general network setup.
 
 === Browser client
+
+To access the desktop the address has to be entered into a browser. Example: http://localhost:9012/
 
  * clipboard integration does not work in Firefox but works in Chromium.
  
@@ -77,14 +83,15 @@ WantedBy=multi-user.target
 
 Then the web server on 9012 has to be reverse proxied with a web server that is accessible from the wild Internet:
 
+ * https is advised to be used
  * Authentication and login has to be solved by the web server somehow: this is not the scope of the rrfb project.
 
- 
 === Known issues
 
  * On disconnect the rrfb process sometimes gets into a 100% cpu loop (100% of a single thread). Reason is still unknown the process has to be killed manually.
  * When the clipboard buffer is huge then it can cause performance issues.
- * An XAUTH file is created in /tmp/x11vnc-xauth.XXXXXX. This may be a security issue on multiuser setups.
+ * In case the bandwidth can not handle the UI updates then there is no mechnanism to cut back the FPS. rrfb tries to send all frames with 10 FPS indifferent of the actual bandwidth.
+ 
 
 === All arguments
 
@@ -185,7 +192,7 @@ Both the C reference implementation and decode.js are modified to handle this mo
 
 The browser emits hopefully standard key names (e.code). These names are translated to Linux keycodes in the RRFB program using a static table. X11 uses linuxkeycode+8 for some reason.
 
-The advantage of this keycode mapping is that the client side keymap is ignored and only the target side kymap is used. Switching keyboard layout on the target works fine and the result is as expected.
+The advantage of this keycode mapping is that the client side keymap is ignored and only the target side keymap is used. Switching keyboard layout on the target works fine and the result is as expected. The client key map is ingnored by the browser in my experience.
 
 == Possible setups
 
