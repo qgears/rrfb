@@ -1,6 +1,7 @@
 package com.rizsi.rrfb;
 
 import java.io.EOFException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -38,6 +39,12 @@ public class RRFBWs extends WebSocketAdapter {
 							}
 							sess.getRemote().sendBytes(ByteBuffer.wrap(buffer, 0, n));
 						}
+					}catch(EOFException e)
+					{
+						System.err.println("RRFB output stream EOF reached");
+					}catch(IOException e)
+					{
+						System.err.println("RRFB output stream closed");
 					} catch (Exception e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -46,6 +53,9 @@ public class RRFBWs extends WebSocketAdapter {
 						try
 						{
 							conn.close();
+						}catch(NullPointerException e)
+						{
+							// normal - do not log
 						}catch(Exception e)
 						{
 							e.printStackTrace();

@@ -113,6 +113,9 @@ typedef struct {
 	int outputFD;
 	int inputFD;
 	xdo_t* xdo;
+	volatile uint32_t nextFrameIndex;
+	volatile uint32_t requestedFrameIndex;
+	uint32_t inactiveCycles;
 }rrfb_session_t;
 
 typedef char v16qi __attribute__ ((vector_size (16)));
@@ -249,7 +252,12 @@ static void processCommand(rrfb_session_t * session, const char * command)
 		if(type_json!=NULL)
 		{
 		   const char * type=json_object_get_string(type_json);
-		   if (strcmp(type, "mousemove") == 0)
+		   if (strcmp(type, "requestFrame") == 0)
+		   {
+			   int32_t index=json_object_get_int(json_object_object_get(jobj, "index"));
+			   session->requestedFrameIndex = index;
+		   }
+		   else if (strcmp(type, "mousemove") == 0)
 		   {
 			   int x=json_object_get_int(json_object_object_get(jobj, "x"));
 			   int y=json_object_get_int(json_object_object_get(jobj, "y"));
@@ -371,6 +379,15 @@ static void * inputThread(void * ptr)
 			switch(errno)
 			{
 			case 0:
+				if(ret==0)
+				{
+					rfbLog("input stream EOF reached\n");
+					exit(1);
+				}else
+				{
+					rfbLog("input stream unknown error\n");
+					exit(1);
+				}
 				break;
 			case EAGAIN:
 				break;
@@ -518,6 +535,9 @@ void main(void)
 	session.frame=0;
 	session.outputFD = 1;
 	session.inputFD = 0;
+	session.requestedFrameIndex = 0;
+	session.nextFrameIndex = 0;
+	session.inactiveCycles = 0;
 	if(session.dpy==NULL)
 	{
 		rfbLog("XOpenDisplay_wr error\n");
@@ -632,7 +652,7 @@ void main(void)
 
 		int err=write_u32(session.outputFD, COMMAND_VERSION);
 		  err|=write_u32(session.outputFD, 16);
-		  err|=writeAll(session.outputFD, "RRFB 0.1.0      ", 16);
+		  err|=writeAll(session.outputFD, "RRFB 0.2.0      ", 16);
 
 		  err|=write_u32(session.outputFD, COMMAND_SIZE);
 		  err|=write_u32(session.outputFD, 8);
@@ -647,6 +667,10 @@ void main(void)
 	}
 	while(1)
 	{
+		if(session.requestedFrameIndex>=session.nextFrameIndex)
+		{
+			session.nextFrameIndex++;
+			session.inactiveCycles =0;
 		XImage * image=session.image[session.currentGrabImage];
 	  Bool ret=XShmGetImage(session.dpy,
 	      RootWindow(session.dpy,0),
@@ -732,15 +756,24 @@ void main(void)
 	          session.frame++;
 	          // rfbLog("Frame grabbed: %d", session.frame);
 
-	          // Let logs always be readable
-	          fflush(stderr);
-	          // Wait a little before the next frame - 100m sleep means less than 10FPS altogether
-	          usleep(100*1000);
 
 	         /* if(session.frame>1)
 	          {
 	        	  break;
 	          }*/
+		} else
+		{
+			session.inactiveCycles ++;
+			if(session.inactiveCycles>50)
+			{
+				fprintf(stderr, "client stalled: does not send request frame for 50 cycles\n");
+				session.inactiveCycles = 0;
+			}
+		}
+        // Let logs always be readable
+        fflush(stderr);
+        // Wait a little before the next frame - 100m sleep means less than 10FPS altogether
+        usleep(100*1000);
 	}
 	session.exit=true;
 	exit(0);

@@ -18,6 +18,7 @@ class Reader {
 	  this.h=new ArrayBuffer(8);
 	  this.hu8=new Uint8Array(this.h);
 	  this.headerAt=0;
+	  this.nextFrameIndex=0;
 	  const queryString = window.location.search;
 	  const urlParams = new URLSearchParams(queryString);
 	  const showPointer = urlParams.get('showPointer');
@@ -80,6 +81,8 @@ class Reader {
 							c.height=this.h; 
 							break;
 						case 2:
+							this.nextFrameIndex++;
+							rrfbSendMessage({type: "requestFrame", index: this.nextFrameIndex+1});
 							const l=this.imageU8.length;
 							decodeAdd(this.d, 0, this.dateLength, 4, this.imageU8);
 							// var decoded=decode(this.d, 0, this.dateLength, 4);
@@ -140,7 +143,7 @@ class Reader {
 						case 5:
 						{
 							var string = new TextDecoder().decode(this.du8);
-							if(string === "RRFB 0.1.0      ")
+							if(string === "RRFB 0.2.0      ")
 							{
 								console.info("Correct RRFB version string received: "+string);
 							}else
@@ -203,18 +206,22 @@ window.addEventListener("load",()=>{
   });
 
 
-rrfbprocessEvent=function(e, msg)
+rrfbSendInputEvent=function(e, msg)
 {
-	msg.t=Date.now();
 	if(!globalDisableMouse)
 	{
-		if(webSocket.readyState<=1)
-		{
-			webSocket.send(JSON.stringify(msg));
-		}
+		rrfbSendMessage(msg);
 	}
 	// console.info(e);
 	e.stopPropagation();e.preventDefault();
+}
+rrfbSendMessage=function(msg)
+{
+	msg.t=Date.now();
+	if(webSocket.readyState<=1)
+	{
+		webSocket.send(JSON.stringify(msg));
+	}
 }
 
 localProcessKeyEvent=function(type, e)
@@ -237,7 +244,7 @@ document.addEventListener("keydown", e=>{
 		console.info("keydown-");
 		console.info(e.keyCode);
 		console.info(e);
-	    rrfbprocessEvent(e, {type: "keydown", code:e.code, key: e.key, keyCode: e.keyCode});
+	    rrfbSendInputEvent(e, {type: "keydown", code:e.code, key: e.key, keyCode: e.keyCode});
 	}
 	});
 document.addEventListener("keyup", e=>{
@@ -245,7 +252,7 @@ document.addEventListener("keyup", e=>{
 	{
 		console.info("keyup");
 		console.info(e);
-	    rrfbprocessEvent(e, {type: "keyup", code:e.code, key: e.key, keyCode: e.keyCode});
+	    rrfbSendInputEvent(e, {type: "keyup", code:e.code, key: e.key, keyCode: e.keyCode});
 //		e.stopPropagation();e.preventDefault();
 	}
 	});
@@ -258,13 +265,13 @@ document.addEventListener("keypressed", e=>{
 	}
 	});
 document.addEventListener("mousemove", e=>{
-	rrfbprocessEvent(e, {type: "mousemove", x: e.clientX, y: e.clientY});
+	rrfbSendInputEvent(e, {type: "mousemove", x: e.clientX, y: e.clientY});
 	});
 document.addEventListener("mousedown", e=>{
-	rrfbprocessEvent(e, {type: "mousedown", x: e.clientX, y: e.clientY, button:e.button});
+	rrfbSendInputEvent(e, {type: "mousedown", x: e.clientX, y: e.clientY, button:e.button});
 });
 document.addEventListener("mouseup", e=>{
-	rrfbprocessEvent(e, {type: "mouseup", x: e.clientX, y: e.clientY, button:e.button});
+	rrfbSendInputEvent(e, {type: "mouseup", x: e.clientX, y: e.clientY, button:e.button});
 });
 document.addEventListener("click", e=>{console.info(e);e.stopPropagation();e.preventDefault();});
 document.addEventListener("dblclick", e=>{console.info(e);e.stopPropagation();e.preventDefault();});
@@ -275,16 +282,16 @@ document.addEventListener("wheel", e => {
 	while(allDy>limit)
 	{
 		console.info(allDy);
-		rrfbprocessEvent(e, {type: "wheel", deltaX: e.deltaX, deltaY: 1});
+		rrfbSendInputEvent(e, {type: "wheel", deltaX: e.deltaX, deltaY: 1});
 		allDy-=limit;
 	}
 	while(allDy<-limit)
 	{
 		console.info(allDy);
-		rrfbprocessEvent(e, {type: "wheel", deltaX: e.deltaX, deltaY: -1});
+		rrfbSendInputEvent(e, {type: "wheel", deltaX: e.deltaX, deltaY: -1});
 		allDy+=limit;
 	}
-// rrfbprocessEvent(e, {type: "wheel", deltaX: e.deltaX, deltaY: e.deltaY});
+// rrfbSendInputEvent(e, {type: "wheel", deltaX: e.deltaX, deltaY: e.deltaY});
 	e.stopPropagation();e.preventDefault();});
 
 //addEventListener("scroll", (event) => {console.info("scroll");});
