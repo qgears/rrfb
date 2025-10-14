@@ -8,6 +8,8 @@ webSocket.onopen=(event) => {
 var cursorImage = new Image();
 cursorImage.src="res/cursor.png";
 
+var nframe = 3;
+var targetmsPeriod = 100;
 
 pointerScreenX=0;
 pointerScreenY=0;
@@ -82,7 +84,7 @@ class Reader {
 							break;
 						case 2:
 							this.nextFrameIndex++;
-							rrfbSendMessage({type: "requestFrame", index: this.nextFrameIndex+1});
+							rrfbSendMessage({type: "requestFrame", index: this.nextFrameIndex+nframe, targetmsPeriod: targetmsPeriod});
 							const l=this.imageU8.length;
 							decodeAdd(this.d, 0, this.dateLength, 4, this.imageU8);
 							// var decoded=decode(this.d, 0, this.dateLength, 4);
@@ -143,7 +145,7 @@ class Reader {
 						case 5:
 						{
 							var string = new TextDecoder().decode(this.du8);
-							if(string === "RRFB 0.2.0      ")
+							if(string === "RRFB 0.3.0      ")
 							{
 								console.info("Correct RRFB version string received: "+string);
 							}else
@@ -184,6 +186,15 @@ window.addEventListener("load",()=>{
 
 globalDisableMouse=false;
 
+updateNframeView = function()
+{
+	 var fm=document.getElementById("nframe");
+	 fm.innerHTML = ""+nframe;
+	 fm=document.getElementById("targetms");
+	 fm.innerHTML = ""+targetmsPeriod;
+}
+
+
 window.addEventListener("load",()=>{
 	 var fm=document.getElementById("floatmenu");
 	 document.getElementById("floatmenu_hide").addEventListener("click", e=>{
@@ -192,6 +203,22 @@ window.addEventListener("load",()=>{
 	     globalDisableMouse=false;
 	     document.getElementById("floatmenu").style.display='none';
 	  	}, 1000);
+	  });
+	 document.getElementById("nframep").addEventListener("click", e=>{
+	   nframe++;
+	   updateNframeView();
+	  });
+	 document.getElementById("nframem").addEventListener("click", e=>{
+	   nframe--;
+	   updateNframeView();
+	  });
+	 document.getElementById("targetmsp").addEventListener("click", e=>{
+	   targetmsPeriod+=10;
+	   updateNframeView();
+	  });
+	 document.getElementById("targetmsm").addEventListener("click", e=>{
+	   targetmsPeriod-=10;
+	   updateNframeView();
 	  });
 	fm.style.display='none';
 	fm.addEventListener("mousemove", e=>{
@@ -203,6 +230,7 @@ window.addEventListener("load",()=>{
 	fm.addEventListener("mouseup", e=>{
 	    e.stopPropagation();e.preventDefault();
 	});
+    updateNframeView();
   });
 
 

@@ -115,6 +115,7 @@ typedef struct {
 	xdo_t* xdo;
 	volatile uint32_t nextFrameIndex;
 	volatile uint32_t requestedFrameIndex;
+	volatile uint32_t targetmsPeriod;
 	uint32_t inactiveCycles;
 }rrfb_session_t;
 
@@ -256,6 +257,16 @@ static void processCommand(rrfb_session_t * session, const char * command)
 		   {
 			   int32_t index=json_object_get_int(json_object_object_get(jobj, "index"));
 			   session->requestedFrameIndex = index;
+			   int32_t targetmsPeriod=json_object_get_int(json_object_object_get(jobj, "targetmsPeriod"));
+			   if(targetmsPeriod<10)
+			   {
+				   targetmsPeriod=10;
+			   }
+			   if(targetmsPeriod>5000)
+			   {
+				   targetmsPeriod=5000;
+			   }
+			   session->targetmsPeriod = targetmsPeriod;
 		   }
 		   else if (strcmp(type, "mousemove") == 0)
 		   {
@@ -652,7 +663,7 @@ void main(void)
 
 		int err=write_u32(session.outputFD, COMMAND_VERSION);
 		  err|=write_u32(session.outputFD, 16);
-		  err|=writeAll(session.outputFD, "RRFB 0.2.0      ", 16);
+		  err|=writeAll(session.outputFD, "RRFB 0.3.0      ", 16);
 
 		  err|=write_u32(session.outputFD, COMMAND_SIZE);
 		  err|=write_u32(session.outputFD, 8);
@@ -772,8 +783,8 @@ void main(void)
 		}
         // Let logs always be readable
         fflush(stderr);
-        // Wait a little before the next frame - 100m sleep means less than 10FPS altogether
-        usleep(100*1000);
+        // Wait a little before the next frame - 100ms sleep means less than 10FPS altogether
+        usleep(session.targetmsPeriod*1000);
 	}
 	session.exit=true;
 	exit(0);

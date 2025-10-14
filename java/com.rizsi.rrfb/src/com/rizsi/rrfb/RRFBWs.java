@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
+import org.eclipse.jetty.websocket.api.WriteCallback;
 
 public class RRFBWs extends WebSocketAdapter {
 	RRFBServerArgs args;
@@ -29,15 +30,27 @@ public class RRFBWs extends WebSocketAdapter {
 				{
 				public void run() {
 					try {
-						byte[]buffer=new byte[32768];
+						RoundRobinBuffer rrb=new RoundRobinBuffer(1024*1024*16);
 						while(true)
 						{
-							int n=is.read(buffer);
+							byte[] buffer=rrb.nextBuffer();
+							int off=rrb.getOff();
+							int len=rrb.getLen();
+							int n=is.read(buffer, off, len);
 							if(n<1)
 							{
 								throw new EOFException();
 							}
-							sess.getRemote().sendBytes(ByteBuffer.wrap(buffer, 0, n));
+							rrb.used(n);
+							sess.getRemote().sendBytes(ByteBuffer.wrap(buffer, off, n), new WriteCallback(){
+								public void writeSuccess() {
+									rrb.sent(n);
+								};
+								public void writeFailed(Throwable x) {
+									x.printStackTrace();
+									sess.close();
+								};
+							});
 						}
 					}catch(EOFException e)
 					{
