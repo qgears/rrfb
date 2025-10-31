@@ -2,6 +2,7 @@ package com.rizsi.rrfb;
 
 import java.net.InetSocketAddress;
 import java.security.SecureRandom;
+import java.util.List;
 
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
@@ -25,11 +26,26 @@ import joptsimple.annot.AnnotatedClass;
 public class RRFBWebServer {
 	public static void main(String[] args) throws Exception {
 		Log4Init.init();
+		List<String> remainingArgs;
 		RRFBServerArgs argso=new RRFBServerArgs();
-		AnnotatedClass ac=new AnnotatedClass();
-		ac.parseAnnotations(argso);
-		ac.parseArgs(args);
-		ac.print();
+		{
+			AnnotatedClass ac=new AnnotatedClass();
+			ac.parseAnnotations(argso);
+			ac.parseArgs(args);
+			ac.print();
+			argso.addConnection(argso.connect);
+			remainingArgs=ac.nonOptionArguments();
+		}
+		while(remainingArgs.size()>0)
+		{
+			RRFBAdditionalArgs add=new RRFBAdditionalArgs();
+			AnnotatedClass ac=new AnnotatedClass();
+			ac.parseAnnotations(add);
+			ac.parseArgs(remainingArgs.toArray(new String[] {}));
+			ac.print();
+			argso.addConnection(add.connect);
+			remainingArgs=ac.nonOptionArguments();
+		}
 		new RRFBWebServer().run(argso);
 	}
 	public int run(RRFBServerArgs args) throws Exception
@@ -49,15 +65,18 @@ public class RRFBWebServer {
 			protected void preHandle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) {
 			};
 		};
-		WebSocketSimple wss=new WebSocketSimple(new WebSocketCreator() {
-			
-			@Override
-			public Object createWebSocket(WebSocketCreationContext c) {
-				return new RRFBWs(args);
-			}
-		});
-		dh.addHandler("/", new RRFBPage().createHandler());
-		dh.addHandler("/", "/rrfb", wss.createHandler());
+		for(String name: args.allConnections.keySet())
+		{
+			WebSocketSimple wss=new WebSocketSimple(new WebSocketCreator() {
+				@Override
+				public Object createWebSocket(WebSocketCreationContext c) {
+					return new RRFBWs(args, args.allConnections.get(name));
+				}
+			});
+			dh.addHandler("/"+name, "/", new RRFBPage(name).createHandler());
+			dh.addHandler("/"+name, "/rrfb", wss.createHandler());
+		}
+		dh.addHandler("/", new Listing(args).createHandler());
 		dh.addHandler("/res", new ResourceClassPathHandler(Res.class));
 		dh.addHandler("/res", new ResourceClassPathHandler(Res.class));
 		sessionHandler.setHandler(dh);

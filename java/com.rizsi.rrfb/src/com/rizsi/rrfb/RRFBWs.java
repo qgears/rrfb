@@ -13,8 +13,10 @@ import org.eclipse.jetty.websocket.api.WriteCallback;
 
 public class RRFBWs extends WebSocketAdapter {
 	RRFBServerArgs args;
-	public RRFBWs(RRFBServerArgs args) {
+	RRFBConnectArgs rrfbConnectArgs;
+	public RRFBWs(RRFBServerArgs args, RRFBConnectArgs rrfbConnectArgs) {
 		this.args=args;
+		this.rrfbConnectArgs=rrfbConnectArgs;
 	}
 	Session sess;
 	OutputStream out;
@@ -23,7 +25,7 @@ public class RRFBWs extends WebSocketAdapter {
 		this.sess=sess;
 		try {
 			try {
-				conn=args.connect.connect();
+				conn=rrfbConnectArgs.connect();
 				InputStream is=conn.getInputStream();
 				out=conn.getOutputStream();
 				new Thread("RRFBoutStream")

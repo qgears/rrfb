@@ -6,7 +6,7 @@ webSocket.onopen=(event) => {
   // webSocket.send("Hello Server!");
 };
 var cursorImage = new Image();
-cursorImage.src="res/cursor.png";
+cursorImage.src="../res/cursor.png";
 
 var nframe = 3;
 var targetmsPeriod = 100;

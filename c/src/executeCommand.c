@@ -40,16 +40,20 @@ void executeCommandWithInput(const char * command, const char * content)
 	}
 	fclose(f);
 }
-char * readClipboard()
+char * readClipboard(const char* display_name)
 {
-	char * data=executeCommandAndReceiveInput("xclip -d :0 -selection clipboard -o");
+	char cmd[128];
+	snprintf(cmd, 128, "xclip -d %s -selection clipboard -o", display_name);
+	char * data=executeCommandAndReceiveInput(cmd);
 	return data;
 }
-void writeClipboard(const char * data)
+void writeClipboard(const char* display_name, const char * data)
 {
 	if(data!=NULL)
 	{
-		executeCommandWithInput("xclip -d :0 -selection clipboard -i", data);
+		char cmd[128];
+		snprintf(cmd, 128, "xclip -d %s -selection clipboard -i", display_name);
+		executeCommandWithInput(cmd, data);
 	}
 }
 /*

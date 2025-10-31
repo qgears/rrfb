@@ -94,10 +94,14 @@ int XCloseDisplay_wr(Display *display) {
 #endif	/* NO_X11 */
 }
 
-
-void fillargs(args_t * args)
+static char defaultDisplayName []= ":0";
+void fillargs(args_t * args, int argc, char ** argv)
 {
-	args->display_name=":0";
+	args->display_name=defaultDisplayName;
+	for(int i=1; i<argc; ++i)
+	{
+		args->display_name=argv[i];
+	}
 }
 #define NBUFFER 2
 typedef struct {
@@ -353,7 +357,7 @@ static void processCommand(rrfb_session_t * session, const char * command)
 			   const char * text=json_object_get_string(json_object_object_get(jobj, "text"));
 			   if(text!=NULL)
 			   {
-				   writeClipboard(text);
+				   writeClipboard(session->args.display_name, text);
 				   rfbLog("clipboard copied from client: %s\n", text);
 			   }
 		   }
@@ -502,7 +506,7 @@ static void * listenClipboardThread(void * ptr)
 	rrfb_session_t * session=(rrfb_session_t *)ptr;
 	while(!session->exit)
 	{
-		char * curr=readClipboard();
+		char * curr=readClipboard(session->args.display_name);
 		if(curr!=NULL)
 		{
 			if(prev==NULL || strcmp(curr, prev))
@@ -536,10 +540,10 @@ static void * listenClipboardThread(void * ptr)
 	return NULL;
 }
 
-void main(void)
+void main(int argc, char ** argv)
 {
 	rrfb_session_t session;
-	fillargs(&session.args);
+	fillargs(&session.args, argc, argv);
 	session.exit=false;
 	session.dpy = XOpenDisplay_wr(session.args.display_name);
 	session.currentGrabImage=0;
@@ -549,6 +553,7 @@ void main(void)
 	session.requestedFrameIndex = 0;
 	session.nextFrameIndex = 0;
 	session.inactiveCycles = 0;
+	session.targetmsPeriod = 100;
 	if(session.dpy==NULL)
 	{
 		rfbLog("XOpenDisplay_wr error\n");
