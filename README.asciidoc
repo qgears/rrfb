@@ -88,10 +88,7 @@ Then the web server on 9012 has to be reverse proxied with a web server that is 
 
 === Known issues
 
- * On disconnect the rrfb process sometimes gets into a 100% cpu loop (100% of a single thread). Reason is still unknown the process has to be killed manually.
  * When the clipboard buffer is huge then it can cause performance issues.
- * In case the bandwidth can not handle the UI updates then there is no mechnanism to cut back the FPS. rrfb tries to send all frames with 10 FPS indifferent of the actual bandwidth.
- 
 
 === All arguments
 
