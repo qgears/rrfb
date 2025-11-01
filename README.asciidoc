@@ -1,6 +1,7 @@
 = RRFB - Rizsi's Remote FrameBuffer
 
 RRFB is similar to VNC but differently optimized for latency. The protocol does not wait for acknowledgement from the client to send the next frame.
+Works with X server on the server side and the client is in the browser. RRFB Server is compiled for Linux AMD64 only. Web server is Java.
 
 == Download
 
@@ -56,9 +57,6 @@ StandardError=journal
 TimeoutStopSec=5
 User=qgears
 
-[Install]
-WantedBy=multi-user.target
-
 ----
 
 Then on a computer that can connect to the port (through port forward, VPN etc) launch the web service:
@@ -92,7 +90,7 @@ Then the web server on 9012 has to be reverse proxied with a web server that is 
 
 === All arguments
 
-rrfb program: has no arguments. Connects to the current X display and does all communication through stdout/stdin.
+rrfb program: has one optional argument the X display identifier. Default value is ":0". Connects to the X display and does all communication through stdout/stdin. stdout and stdin has to be piped to the web server component either by direct process execution or by sending them through TCP using tools like a systemd socket.
 
 rrfb.jar program argumnents and default values:
 
@@ -100,11 +98,32 @@ rrfb.jar program argumnents and default values:
 
 --host 0.0.0.0   : the host where the web server is bound to. Set to 127.0.0.1 to liomit access to localhost when it is set up behind a reverse proxy.
 --port 9012 : the TCP port where the web server is bound to.
+--connectName: Name of the desktop shown to the user in the selection page.
 --connectCommand: empty : when set then for each client connection this program is launched to provide rrfbn feature. Must be set to the path of the rrfb binary.
 --connectHost: empty : when set then instead of launching a program to provide the rrfb connection it connects to a TCP host/port
 --connectPort: 0 : when set then instead of launching a program to provide the rrfb connection it connects to a TCP host/port
+--connectCommandSplit true/false: Split the command by spaces to create command+Argument list (instead of using commandArg)
+--connectCommandArg: Additional arguments of command that starts rrfb server process.
+
+using a "--" separator argument multiple connections can be set up:
+
+--connectName: Name of the desktop shown to the user in the selection page.
+--connectCommand: empty : when set then for each client connection this program is launched to provide rrfbn feature. Must be set to the path of the rrfb binary.
+--connectHost: empty : when set then instead of launching a program to provide the rrfb connection it connects to a TCP host/port
+--connectPort: 0 : when set then instead of launching a program to provide the rrfb connection it connects to a TCP host/port
+--connectCommandSplit true/false: Split the command by spaces to create command+Argument list (instead of using commandArg)
+--connectCommandArg: Additional arguments of command that starts rrfb server process.
 
 ----
+
+Example that serves 2 remote computers through TCP and also the local one executing the rrfb command directly. It also restricts memory usage of the Java process:
+
+----
+
+java -Xmx128m -Xss32m -jar rrfb.jar --connectName machine1 --connectHost remoteHost --connectPort 12345 -- --connectName machine2 --connectHost remoteHost2 --connectPort 12445 -- --connectName thisMachine --connectCommand rrfb
+
+----
+
 
 === Components
 
