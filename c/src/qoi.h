@@ -67,7 +67,7 @@ A QOI file has a 14 byte header, followed by any number of data "chunks" and an
 8-byte end marker.
 
 struct qoi_header_t {
-	char     magic[4];   // magic bytes "qoif"
+	char     magic[4];   // magic bytes "qoif" ("qoig" - modified by Rizsi)
 	uint32_t width;      // image width in pixels (BE)
 	uint32_t height;     // image height in pixels (BE)
 	uint8_t  channels;   // 3 = RGB, 4 = RGBA
@@ -322,6 +322,8 @@ Implementation */
 
 #define QOI_MASK_2    0xc0 /* 11000000 */
 
+#define QOI_LIMIT_ONE_BYTE_RUN 62
+
 #define QOI_COLOR_HASH(C) (C.rgba.r*3 + C.rgba.g*5 + C.rgba.b*7 + C.rgba.a*11)
 #define QOI_MAGIC \
 	(((unsigned int)'q') << 24 | ((unsigned int)'o') << 16 | \
@@ -417,8 +419,15 @@ void *qoi_encode(const void *data, const qoi_desc *desc, int *out_len) {
 
 		if (px.v == px_prev.v) {
 			run++;
-			if (run == 62 || px_pos == px_end) {
-				bytes[p++] = QOI_OP_RUN | (run - 1);
+			if (px_pos == px_end) {
+				if(run>=QOI_LIMIT_ONE_BYTE_RUN)
+				{
+					bytes[p++] = QOI_OP_RUN | (QOI_LIMIT_ONE_BYTE_RUN - 1);
+					qoi_write_32(bytes, &p, run);
+				}else
+				{
+					bytes[p++] = QOI_OP_RUN | (run - 1);
+				}
 				run = 0;
 			}
 		}
@@ -426,7 +435,14 @@ void *qoi_encode(const void *data, const qoi_desc *desc, int *out_len) {
 			int index_pos;
 
 			if (run > 0) {
-				bytes[p++] = QOI_OP_RUN | (run - 1);
+				if(run>=QOI_LIMIT_ONE_BYTE_RUN)
+				{
+					bytes[p++] = QOI_OP_RUN | (QOI_LIMIT_ONE_BYTE_RUN - 1);
+					qoi_write_32(bytes, &p, run);
+				}else
+				{
+					bytes[p++] = QOI_OP_RUN | (run - 1);
+				}
 				run = 0;
 			}
 
@@ -575,6 +591,10 @@ void *qoi_decode(const void *data, int size, qoi_desc *desc, int channels) {
 			}
 			else if ((b1 & QOI_MASK_2) == QOI_OP_RUN) {
 				run = (b1 & 0x3f);
+				if(run==QOI_LIMIT_ONE_BYTE_RUN)
+				{
+					run=qoi_read_32(bytes, &p) - 1;
+				}
 			}
 
 			index[QOI_COLOR_HASH(px) % 64] = px;

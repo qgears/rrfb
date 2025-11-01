@@ -119,9 +119,10 @@ function decodeAdd (arrayBuffer, byteOffset, byteLength, outputChannels, resultT
                 blue = (blue + blueDiff + 256) % 256;
             } else if ((byte1 & 0b11000000) === 0b11000000) { // QOI_OP_RUN
                 run = byte1 & 0b00111111;
-                if(run==62)
+                if(run==61)
                 {
                     run=((uint8[arrayPosition] << 24) | (uint8[arrayPosition+1] << 16) | (uint8[arrayPosition+2] << 8) | uint8[arrayPosition+3]) >>> 0;
+                    run-=1;
                     arrayPosition+=4;
                 }
             }

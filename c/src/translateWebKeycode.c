@@ -117,7 +117,7 @@ int translateWebKeyCode(Display * dpy, const char * code)
 	{
 //		keycode=XKeysymToKeycode(dpy, sym);
 
-		fprintf(stderr, "Code -> sym -> keycode: %s -> %d -> %d\n", code, sym, keycode);
+		// fprintf(stderr, "Code -> sym -> keycode: %s -> %d -> %d\n", code, sym, keycode);
 	}
 	return keycode;
 }

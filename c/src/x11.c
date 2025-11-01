@@ -32,12 +32,16 @@
 #define COMMAND_CLIPBOARDCHANGED 3
 #define COMMAND_POINTERUPDATE 4
 #define COMMAND_VERSION 5
+/// Acknowledge a past query. Used to track timing
+#define COMMAND_ACK 6
 
 typedef struct {
 	char * display_name;
 } args_t;
 
 pthread_mutex_t globalLock = PTHREAD_MUTEX_INITIALIZER;
+
+pthread_mutex_t timestampLock = PTHREAD_MUTEX_INITIALIZER;
 
 static Display *XOpenDisplay_wr(char * display_name);
 static void set_env(char *name, char *value) {
@@ -104,6 +108,7 @@ void fillargs(args_t * args, int argc, char ** argv)
 	}
 }
 #define NBUFFER 2
+#define MAX_ACK 128
 typedef struct {
 	volatile bool exit;
 	args_t args;
@@ -121,6 +126,11 @@ typedef struct {
 	volatile uint32_t requestedFrameIndex;
 	volatile uint32_t targetmsPeriod;
 	uint32_t inactiveCycles;
+	uint32_t nAck;
+	uint32_t lastMsgReceived[MAX_ACK];
+	uint32_t msgTimestamp[MAX_ACK];
+	uint32_t msgServerTimestamp[MAX_ACK];
+	uint64_t lastMsgReceivedTime[MAX_ACK];
 }rrfb_session_t;
 
 typedef char v16qi __attribute__ ((vector_size (16)));
@@ -197,6 +207,13 @@ int write_u32(int fd, uint32_t value)
 {
 	return writeAll(fd, (uint8_t *)&value, 4);
 }
+/**
+ * Platform independent write of u64 TODO not platform independent yet
+ */
+int write_u64(int fd, uint64_t value)
+{
+	return writeAll(fd, (uint8_t *)&value, 8);
+}
 #include <sys/time.h>
 /**
 * @brief provide same output with the native function in java called
@@ -257,6 +274,20 @@ static void processCommand(rrfb_session_t * session, const char * command)
 		if(type_json!=NULL)
 		{
 		   const char * type=json_object_get_string(type_json);
+		   uint32_t msgIndex=json_object_get_int(json_object_object_get(jobj, "msgIndex"));
+		   uint32_t msgTimestamp=json_object_get_int(json_object_object_get(jobj, "msgTimestamp"));
+		   uint32_t msgServerTimestamp=json_object_get_int(json_object_object_get(jobj, "msgServerTimestamp"));
+		   // rfbLog("msgIndex: %d\n", msgIndex);
+		   pthread_mutex_lock(&timestampLock);
+		   if(session->nAck<MAX_ACK)
+		   {
+			   session->lastMsgReceived[session->nAck]=msgIndex;
+			   session->msgTimestamp[session->nAck]=msgTimestamp;
+			   session->msgServerTimestamp[session->nAck]=msgServerTimestamp;
+			   session->lastMsgReceivedTime[session->nAck]=currentTimeMillis();
+			   session->nAck++;
+		   }
+		   pthread_mutex_unlock(&timestampLock);
 		   if (strcmp(type, "requestFrame") == 0)
 		   {
 			   int32_t index=json_object_get_int(json_object_object_get(jobj, "index"));
@@ -322,7 +353,7 @@ static void processCommand(rrfb_session_t * session, const char * command)
 		   else if (strcmp(type, "keyup") == 0)
 		   {
 			   const char * code=json_object_get_string(json_object_object_get(jobj, "code"));
-			   rfbLog("Keyup: %s\n", code);
+			   // rfbLog("Keyup: %s\n", code);
 			   //int webkeycode=json_object_get_int(json_object_object_get(jobj, "code"));
 			   int keycode=translateWebKeyCode(session->xdo->xdpy, code);
 
@@ -344,7 +375,7 @@ static void processCommand(rrfb_session_t * session, const char * command)
 			   int keycode=translateWebKeyCode(session->xdo->xdpy, code);
 			   if(keycode!=-1)
 			   {
-				   rfbLog("Keydown: %s %d\n", code, keycode);
+				   // rfbLog("Keydown: %s %d\n", code, keycode);
 				   keyEvent(session, true, keycode);
 			   }else
 			   {
@@ -420,7 +451,7 @@ static void * inputThread(void * ptr)
 			case '\n': // execute command
 				inputBuffer[at]=0;
 				processCommand(session, inputBuffer);
-				// rfbLog("command: %s\n", inputBuffer);
+				//rfbLog("command: %s\n", inputBuffer);
 				at=0;
 				break;
 			default:
@@ -554,6 +585,7 @@ void main(int argc, char ** argv)
 	session.nextFrameIndex = 0;
 	session.inactiveCycles = 0;
 	session.targetmsPeriod = 100;
+	session.nAck=0;
 	if(session.dpy==NULL)
 	{
 		rfbLog("XOpenDisplay_wr error\n");
@@ -665,10 +697,9 @@ void main(int argc, char ** argv)
 
 	{
 		pthread_mutex_lock(&globalLock);
-
 		int err=write_u32(session.outputFD, COMMAND_VERSION);
 		  err|=write_u32(session.outputFD, 16);
-		  err|=writeAll(session.outputFD, "RRFB 0.3.0      ", 16);
+		  err|=writeAll(session.outputFD, "RRFB 0.4.0      ", 16);
 
 		  err|=write_u32(session.outputFD, COMMAND_SIZE);
 		  err|=write_u32(session.outputFD, 8);
@@ -720,10 +751,28 @@ void main(int argc, char ** argv)
 	  {
 		  int err=0;
 		pthread_mutex_lock(&globalLock);
+		pthread_mutex_lock(&timestampLock);
+		for(uint32_t i=0;i<session.nAck; ++i)
+		{
+			  err|=write_u32(session.outputFD, COMMAND_ACK);
+			  err|=write_u32(session.outputFD, 24);
+			  err|=write_u32(session.outputFD, session.lastMsgReceived[i]);
+			  err|=write_u32(session.outputFD, (uint32_t)session.msgTimestamp[i]);
+			  err|=write_u32(session.outputFD, (uint32_t)session.msgServerTimestamp[i]);
+			  err|=write_u32(session.outputFD, (uint32_t)session.lastMsgReceivedTime[i]);
+			  err|=write_u32(session.outputFD, (uint32_t)currentTimeMillis());
+			  err|=write_u32(session.outputFD, (uint32_t)0); // Server timestamp on the way back to the client - overwritten by the web server component
+		}
+		session.nAck=0;
+		pthread_mutex_unlock(&timestampLock);
 		  err|=write_u32(session.outputFD, COMMAND_IMAGEUPDATE);
 
-		  err|=write_u32(session.outputFD, out_len);
+		  err|=write_u32(session.outputFD, out_len+16);
+		  err|=write_u32(session.outputFD, (uint32_t)currentTimeMillis());
+		  err|=write_u32(session.outputFD, (uint32_t)0); // Server timestamp
 		  err|=writeAll(session.outputFD, compressed, out_len);
+		  err|=write_u32(session.outputFD, (uint32_t)currentTimeMillis());
+		  err|=write_u32(session.outputFD, (uint32_t)0); // Server timestamp
 		  fsync(session.outputFD);
 		  free(compressed);
 		pthread_mutex_unlock(&globalLock);

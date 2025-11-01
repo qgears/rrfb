@@ -14,6 +14,8 @@ var targetmsPeriod = 100;
 pointerScreenX=0;
 pointerScreenY=0;
 pointerMask=0;
+const params = new URLSearchParams(window.location.search);
+const logTime = params.get('logTime') === "true";
 class Reader {
 	constructor()
 	{
@@ -21,10 +23,20 @@ class Reader {
 	  this.hu8=new Uint8Array(this.h);
 	  this.headerAt=0;
 	  this.nextFrameIndex=0;
+	  this.msgIndex=0;
 	  const queryString = window.location.search;
 	  const urlParams = new URLSearchParams(queryString);
 	  const showPointer = urlParams.get('showPointer');
 	  this.showPointer = showPointer === 'true';
+	  this.nPiece=0;
+	}
+	createNewMsgIndex()
+	{
+		return this.msgIndex++;
+	}
+	createTimestamp()
+	{
+		return Date.now()%4294967296;
 	}
 	readu32(uint8, ptr)
 	{
@@ -32,6 +44,7 @@ class Reader {
 	}
 	append(data)
 	{
+		this.nPiece++;
 		var at=0;
 		var du8=new Uint8Array(data);
 		while(at<data.byteLength)
@@ -67,7 +80,11 @@ class Reader {
 				}
 				if(this.dataAt==this.dataLength)
 				{
-					// console.info("Command fully received: ",this.command, this.dataLength);
+					if(logTime)
+					{
+						console.info("Command fully received: ",this.command, this.dataLength, this.nPiece);
+					}
+					this.nPiece=0;
 					switch(this.command)
 					{
 						case 1:
@@ -84,9 +101,19 @@ class Reader {
 							break;
 						case 2:
 							this.nextFrameIndex++;
-							rrfbSendMessage({type: "requestFrame", index: this.nextFrameIndex+nframe, targetmsPeriod: targetmsPeriod});
+							rrfbSendMessage({type: "requestFrame", index: this.nextFrameIndex+nframe, targetmsPeriod: targetmsPeriod, msgIndex: this.createNewMsgIndex(), msgTimestamp: this.createTimestamp(), msgServerTimestamp: 0});
 							const l=this.imageU8.length;
-							decodeAdd(this.d, 0, this.dateLength, 4, this.imageU8);
+							var ts0=this.readu32(this.du8, 0);
+							var ts0server=this.readu32(this.du8, 4);
+							var ts1=this.readu32(this.du8, this.dataLength-8);
+							var ts1server=this.readu32(this.du8, this.dataLength-4);
+							var tsNow=this.createTimestamp();
+							if(logTime)
+							{
+								console.info("Frame timestamps: "+ts0+" "+ts0server+" "+ts1+" "+ts1server+" "+tsNow+" web latency: "+(tsNow-ts1server)+" size: "+this.dataLength);
+							}
+							
+							decodeAdd(this.d, 8, this.dataLength-16, 4, this.imageU8);
 							// var decoded=decode(this.d, 0, this.dateLength, 4);
 							// console.info("Decode diff image", decoded, l);
 							// this.diffImage=decoded.result;
@@ -123,17 +150,25 @@ class Reader {
 							break;
 						case 3:
 							var string = new TextDecoder().decode(this.du8);
-							if(string===currentLocalClipboardContent)
+							try
 							{
-								// Nothing to do
-							}else
-							{
-								if(navigator.clipboard)
+								if(string===currentLocalClipboardContent)
 								{
-									navigator.clipboard.writeText(string);
+									// Nothing to do
+								}else
+								{
+									if(navigator.clipboard)
+									{
+										navigator.clipboard.writeText(string).catch((error) => {
+  											console.error(error);
+										});
+									}
 								}
+								console.info("clipboard changed: ",this.command, this.dataLength, string);
+							}catch(exc)
+							{
+								console.error(exc);
 							}
-							console.info("clipboard changed: ",this.command, this.dataLength, string);
 							break;
 						case 4:
 						{
@@ -145,12 +180,26 @@ class Reader {
 						case 5:
 						{
 							var string = new TextDecoder().decode(this.du8);
-							if(string === "RRFB 0.3.0      ")
+							if(string === "RRFB 0.4.0      ")
 							{
 								console.info("Correct RRFB version string received: "+string);
 							}else
 							{
 								console.error("Incorrect RRFB version string received: '"+string+"' try best effort");
+							}
+							break;
+						}
+						case 6:
+						{
+							var ackMsgIndex=this.readu32(this.du8, 0);
+							var t0=this.readu32(this.du8, 4);// sent by JS
+							var t1=this.readu32(this.du8, 8);// query received by Web server
+							var t2=this.readu32(this.du8, 12);// received on rrfb server
+							var t3=this.readu32(this.du8, 16);// ack sent by received by web server
+							var t4=this.readu32(this.du8, 20);// ack received by web server
+							if(logTime)
+							{
+								console.info("T reply: "+ackMsgIndex+" "+t0+" "+t1+" "+t2+" "+t3+" "+t4+" processing millis: "+(t1-t0) +" "+this.createTimestamp());
 							}
 							break;
 						}
@@ -188,10 +237,10 @@ globalDisableMouse=false;
 
 updateNframeView = function()
 {
-	 var fm=document.getElementById("nframe");
-	 fm.innerHTML = ""+nframe;
-	 fm=document.getElementById("targetms");
-	 fm.innerHTML = ""+targetmsPeriod;
+	var fm=document.getElementById("nframe");
+	fm.innerHTML = ""+nframe;
+	fm=document.getElementById("targetms");
+	fm.innerHTML = ""+targetmsPeriod;
 }
 
 
@@ -246,6 +295,9 @@ rrfbSendInputEvent=function(e, msg)
 rrfbSendMessage=function(msg)
 {
 	msg.t=Date.now();
+	msg.msgIndex=r.createNewMsgIndex();
+	msg.msgTimestamp=r.createTimestamp();
+	msg.msgServerTimestamp=0;
 	if(webSocket.readyState<=1)
 	{
 		webSocket.send(JSON.stringify(msg));
