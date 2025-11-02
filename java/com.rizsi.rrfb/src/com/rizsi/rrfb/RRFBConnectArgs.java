@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import joptsimple.annot.JOHelp;
-import joptsimple.annot.JOSimpleBoolean;
 
 public class RRFBConnectArgs {
 	@JOHelp("Name of the desktop shown to the user in the selection page.")

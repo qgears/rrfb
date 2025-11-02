@@ -211,7 +211,14 @@ public class RRFBWs extends WebSocketAdapter {
 		try {
 			String pattern= "\"msgServerTimestamp\":0";
 			int idx=message.indexOf(pattern);
-			String replaced=message.substring(0,idx)+"\"msgServerTimestamp\":"+ (System.currentTimeMillis()%4294967296l) +message.substring(idx+pattern.length());
+			String replaced;
+			if(idx>0)
+			{
+				replaced=message.substring(0,idx)+"\"msgServerTimestamp\":"+ (System.currentTimeMillis()%4294967296l) +message.substring(idx+pattern.length());
+			}else
+			{
+				replaced=message;
+			}
 			// System.out.println("WS messge: "+message+"\n"+replaced);
 			out.write(replaced.getBytes(StandardCharsets.UTF_8));
 			out.write("\n".getBytes(StandardCharsets.UTF_8));

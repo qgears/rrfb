@@ -277,7 +277,6 @@ static void processCommand(rrfb_session_t * session, const char * command)
 		   uint32_t msgIndex=json_object_get_int(json_object_object_get(jobj, "msgIndex"));
 		   uint32_t msgTimestamp=json_object_get_int(json_object_object_get(jobj, "msgTimestamp"));
 		   uint32_t msgServerTimestamp=json_object_get_int(json_object_object_get(jobj, "msgServerTimestamp"));
-		   // rfbLog("msgIndex: %d\n", msgIndex);
 		   pthread_mutex_lock(&timestampLock);
 		   if(session->nAck<MAX_ACK)
 		   {
@@ -310,92 +309,95 @@ static void processCommand(rrfb_session_t * session, const char * command)
 			   //rfbLog("Mousemove: %s %d %d\n", type, x, y);
 			   xdo_move_mouse(session->xdo, x, y, 0);
 		     // do something
-		   }
-		   else if (strcmp(type, "mousedown") == 0)
+		   }else
 		   {
-			   int x=json_object_get_int(json_object_object_get(jobj, "x"));
-			   int y=json_object_get_int(json_object_object_get(jobj, "y"));
-			   int button=json_object_get_int(json_object_object_get(jobj, "button"));
-			   //rfbLog("Mousedown: %s %d %d %d\n", type, x, y, button);
-			   xdo_move_mouse(session->xdo, x, y, 0);
-			   xdo_mouse_down(session->xdo, CURRENTWINDOW, button+1);
-		     // do something else
-		   }
-		   else if (strcmp(type, "mouseup") == 0)
-		   {
-			   int x=json_object_get_int(json_object_object_get(jobj, "x"));
-			   int y=json_object_get_int(json_object_object_get(jobj, "y"));
-			   int button=json_object_get_int(json_object_object_get(jobj, "button"));
-			   //rfbLog("Mouseup: %s %d %d %d\n", type, x, y, button);
-			   xdo_move_mouse(session->xdo, x, y, 0);
-			   xdo_mouse_up(session->xdo, CURRENTWINDOW, button+1);
-		     // do something else
-		   }
-		   else if (strcmp(type, "wheel") == 0)
-		   {
-			   double dx=json_object_get_double(json_object_object_get(jobj, "deltaX"));
-			   double dy=json_object_get_double(json_object_object_get(jobj, "deltaY"));
-			   //rfbLog("Mouseup: %s %d %d %d\n", type, x, y, button);
-			   if(dy<0)
+			   rfbLog("msg received: %s index: %"PRIu32" tJS: %"PRIu32" tws:%"PRIu32" t:%"PRIu32"\n", type, msgIndex, msgTimestamp, msgServerTimestamp, (uint32_t)currentTimeMillis());
+			   if (strcmp(type, "mousedown") == 0)
 			   {
-				   rfbLog("wheel down\n");
-				   xdo_mouse_down(session->xdo, CURRENTWINDOW, 4);
-				   xdo_mouse_up(session->xdo, CURRENTWINDOW, 4);
+				   int x=json_object_get_int(json_object_object_get(jobj, "x"));
+				   int y=json_object_get_int(json_object_object_get(jobj, "y"));
+				   int button=json_object_get_int(json_object_object_get(jobj, "button"));
+				   //rfbLog("Mousedown: %s %d %d %d\n", type, x, y, button);
+				   xdo_move_mouse(session->xdo, x, y, 0);
+				   xdo_mouse_down(session->xdo, CURRENTWINDOW, button+1);
+			     // do something else
 			   }
-			   if(dy>0)
+			   else if (strcmp(type, "mouseup") == 0)
 			   {
-				   rfbLog("wheel up\n");
-				   xdo_mouse_down(session->xdo, CURRENTWINDOW, 5);
-				   xdo_mouse_up(session->xdo, CURRENTWINDOW, 5);
+				   int x=json_object_get_int(json_object_object_get(jobj, "x"));
+				   int y=json_object_get_int(json_object_object_get(jobj, "y"));
+				   int button=json_object_get_int(json_object_object_get(jobj, "button"));
+				   //rfbLog("Mouseup: %s %d %d %d\n", type, x, y, button);
+				   xdo_move_mouse(session->xdo, x, y, 0);
+				   xdo_mouse_up(session->xdo, CURRENTWINDOW, button+1);
+			     // do something else
 			   }
-		     // do something else
-		   }
-		   else if (strcmp(type, "keyup") == 0)
-		   {
-			   const char * code=json_object_get_string(json_object_object_get(jobj, "code"));
-			   // rfbLog("Keyup: %s\n", code);
-			   //int webkeycode=json_object_get_int(json_object_object_get(jobj, "code"));
-			   int keycode=translateWebKeyCode(session->xdo->xdpy, code);
+			   else if (strcmp(type, "wheel") == 0)
+			   {
+				   double dx=json_object_get_double(json_object_object_get(jobj, "deltaX"));
+				   double dy=json_object_get_double(json_object_object_get(jobj, "deltaY"));
+				   //rfbLog("Mouseup: %s %d %d %d\n", type, x, y, button);
+				   if(dy<0)
+				   {
+					   rfbLog("wheel down\n");
+					   xdo_mouse_down(session->xdo, CURRENTWINDOW, 4);
+					   xdo_mouse_up(session->xdo, CURRENTWINDOW, 4);
+				   }
+				   if(dy>0)
+				   {
+					   rfbLog("wheel up\n");
+					   xdo_mouse_down(session->xdo, CURRENTWINDOW, 5);
+					   xdo_mouse_up(session->xdo, CURRENTWINDOW, 5);
+				   }
+			     // do something else
+			   }
+			   else if (strcmp(type, "keyup") == 0)
+			   {
+				   const char * code=json_object_get_string(json_object_object_get(jobj, "code"));
+				   // rfbLog("Keyup: %s\n", code);
+				   //int webkeycode=json_object_get_int(json_object_object_get(jobj, "code"));
+				   int keycode=translateWebKeyCode(session->xdo->xdpy, code);
 
-			   if(keycode!=-1)
-			   {
-				   keyEvent(session, false, keycode);
-			   }else
-			   {
-				   rfbLog("Unhandled keyup: %s\n", code);
+				   if(keycode!=-1)
+				   {
+					   keyEvent(session, false, keycode);
+				   }else
+				   {
+					   rfbLog("Unhandled keyup: %s\n", code);
+				   }
+				   XSync (session->xdo->xdpy, False);
+			     // do something else
 			   }
-			   XSync (session->xdo->xdpy, False);
-		     // do something else
-		   }
-		   else if (strcmp(type, "keydown") == 0)
-		   {
-			   const char * code=json_object_get_string(json_object_object_get(jobj, "code"));
-			   // rfbLog("Keydown: %s\n", code);
-			   // int webkeycode=json_object_get_int(json_object_object_get(jobj, "keyCode"));
-			   int keycode=translateWebKeyCode(session->xdo->xdpy, code);
-			   if(keycode!=-1)
+			   else if (strcmp(type, "keydown") == 0)
 			   {
-				   // rfbLog("Keydown: %s %d\n", code, keycode);
-				   keyEvent(session, true, keycode);
-			   }else
+				   const char * code=json_object_get_string(json_object_object_get(jobj, "code"));
+				   // rfbLog("Keydown: %s\n", code);
+				   // int webkeycode=json_object_get_int(json_object_object_get(jobj, "keyCode"));
+				   int keycode=translateWebKeyCode(session->xdo->xdpy, code);
+				   if(keycode!=-1)
+				   {
+					   // rfbLog("Keydown: %s %d\n", code, keycode);
+					   keyEvent(session, true, keycode);
+				   }else
+				   {
+					   rfbLog("Unhandled keydown: %s\n", code);
+				   }
+				   XSync (session->xdo->xdpy, False);
+			     // do something else
+			   }else if(strcmp(type, "clipboard") == 0)
 			   {
-				   rfbLog("Unhandled keydown: %s\n", code);
+				   const char * text=json_object_get_string(json_object_object_get(jobj, "text"));
+				   if(text!=NULL)
+				   {
+					   writeClipboard(session->args.display_name, text);
+					   rfbLog("clipboard copied from client: %s\n", text);
+				   }
 			   }
-			   XSync (session->xdo->xdpy, False);
-		     // do something else
-		   }else if(strcmp(type, "clipboard") == 0)
-		   {
-			   const char * text=json_object_get_string(json_object_object_get(jobj, "text"));
-			   if(text!=NULL)
+			   /* more else if clauses */
+			   else /* default: */
 			   {
-				   writeClipboard(session->args.display_name, text);
-				   rfbLog("clipboard copied from client: %s\n", text);
+				   rfbLog("unhandled message type: %s\n", type);
 			   }
-		   }
-		   /* more else if clauses */
-		   else /* default: */
-		   {
-			   rfbLog("unhandled message type: %s\n", type);
 		   }
 		}
 		json_object_put(jobj);
@@ -427,8 +429,8 @@ static void * inputThread(void * ptr)
 			case 0:
 				if(ret==0)
 				{
-					rfbLog("input stream EOF reached\n");
-					exit(1);
+					rfbLog("input stream EOF reached: normal exit\n");
+					exit(0);
 				}else
 				{
 					rfbLog("input stream unknown error\n");
@@ -561,7 +563,8 @@ static void * listenClipboardThread(void * ptr)
 				pthread_mutex_unlock(&globalLock);
 				if(err)
 				{
-					exit(1);
+					rfbLog("Output stream broken: normal exit\n");
+					exit(0);
 				}
 				// rfbLog("Clipboard content changed: %s\n", curr);
 			}
@@ -709,7 +712,8 @@ void main(int argc, char ** argv)
 		pthread_mutex_unlock(&globalLock);
 		if(err)
 		{
-			exit(1);
+			rfbLog("Client stream exited before version string: normal exit\n");
+			exit(0);
 		}
 	}
 	while(1)
@@ -778,8 +782,8 @@ void main(int argc, char ** argv)
 		pthread_mutex_unlock(&globalLock);
 		if(err)
 		{
-			rfbLog("output pipe broken: exit\n");
-			exit(1);
+			rfbLog("output pipe broken: normal exit\n");
+			exit(0);
 		}
 	  }else
 	  {
@@ -808,7 +812,7 @@ void main(int argc, char ** argv)
 		if(err)
 		{
 			rfbLog("output pipe broken: exit\n");
-			exit(1);
+			exit(0);
 		}
            } else {
             // fprintf(stderr, "Unable to query pointer location.\n");

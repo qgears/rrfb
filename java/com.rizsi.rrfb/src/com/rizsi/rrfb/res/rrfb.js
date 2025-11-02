@@ -298,7 +298,7 @@ rrfbSendMessage=function(msg)
 	msg.msgIndex=r.createNewMsgIndex();
 	msg.msgTimestamp=r.createTimestamp();
 	msg.msgServerTimestamp=0;
-	if(webSocket.readyState<=1)
+	if(webSocket.readyState==1)
 	{
 		webSocket.send(JSON.stringify(msg));
 	}
@@ -393,14 +393,7 @@ triggerListenClipboard=function()
 	    console.log('Clipboard content changed: ', text);
 	    currentLocalClipboardContent=text;
 	    	msg={type: "clipboard", text: text};
-	    	msg.t=Date.now();
-			// if(!globalDisableMouse)
-			{
-				if(webSocket.readyState<=1)
-				{
-					webSocket.send(JSON.stringify(msg));
-				}
-			}
+	    	rrfbSendMessage(msg);
 	    }
 	    setTimeout(triggerListenClipboard, 500);
 	  })
