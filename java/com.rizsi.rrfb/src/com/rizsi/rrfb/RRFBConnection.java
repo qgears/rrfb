@@ -5,9 +5,9 @@ import java.io.OutputStream;
 
 public abstract class RRFBConnection implements AutoCloseable {
 
-	protected abstract InputStream getInputStream();
+	protected abstract InputStream getInputStream() throws Exception;
 
-	protected abstract OutputStream getOutputStream();
+	protected abstract OutputStream getOutputStream() throws Exception;
 	@Override
 	abstract public void close();
 }

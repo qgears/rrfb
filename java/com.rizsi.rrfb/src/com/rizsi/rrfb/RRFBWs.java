@@ -27,12 +27,12 @@ public class RRFBWs extends WebSocketAdapter {
 		try {
 			try {
 				conn=rrfbConnectArgs.connect();
-				InputStream is=conn.getInputStream();
-				out=conn.getOutputStream();
 				new Thread("RRFBoutStream")
 				{
 				public void run() {
 					try {
+						InputStream is=conn.getInputStream();
+						System.out.println("RRFBWs input opened.");
 						RoundRobinBuffer rrb=new RoundRobinBuffer(1024*1024*16);
 						while(true)
 						{
@@ -81,6 +81,8 @@ public class RRFBWs extends WebSocketAdapter {
 				};
 				}
 				.start();
+				out=conn.getOutputStream();
+				System.out.println("RRFBWs output opened.");
 				System.out.println("Connected!");
 			} catch (Exception e) {
 				throw new RuntimeException(e);

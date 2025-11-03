@@ -18,12 +18,18 @@ public class RRFBConnectArgs {
 	public int port;
 	@JOHelp("Split the command by spaces to create command+Argument list (instead of using commandArg)")
 	public boolean commandSplit = true;
+	@JOHelp("Reverse connect - undocumented feature do not use")
+	public boolean reverseConnect = false;
 	public RRFBConnection connect() throws Exception {
 		if(command!=null)
 		{
 			return new RRFBConnectionProcess(command, commandArg, commandSplit);
+		}else if(reverseConnect)
+		{
+			return new RRFBConnectionReverseTcp(host, port);
 		}else
 		{
+			
 			return new RRFBConnectionTcp(host, port);
 		}
 	}

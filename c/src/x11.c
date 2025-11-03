@@ -126,6 +126,7 @@ typedef struct {
 	volatile uint32_t requestedFrameIndex;
 	volatile uint32_t targetmsPeriod;
 	uint32_t inactiveCycles;
+	uint32_t inactiveBigCycles;
 	uint32_t nAck;
 	uint32_t lastMsgReceived[MAX_ACK];
 	uint32_t msgTimestamp[MAX_ACK];
@@ -251,32 +252,14 @@ static void processCommand(rrfb_session_t * session, const char * command)
 		// rfbLog("jobj from str:\n---\n%s\n---\n", json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_SPACED | JSON_C_TO_STRING_PRETTY));
 		json_object *type_json = json_object_object_get(jobj, "type");
 
-		// In case timing of input events becomes jammed then to avoid too fast execution
-		// We detect the case and sleep a little.
-		// Timing of key+mouse events is not real time but we also do not allow too much jamming
-		int64_t tremote=json_object_get_int64(json_object_object_get(jobj, "t"));
-		int64_t tdiffremote=tremote-prevT_remote;
-		if(tdiffremote<0) tdiffremote=0;
-		if(tdiffremote>10000) tdiffremote=0;
-		int64_t tlocal=currentTimeMillis();
-		int64_t tdifflocal=tlocal-prevT_local;
-		if(tdifflocal<0) tdifflocal=0;
-		if(tdiffremote>tdifflocal*2)
-		{
-			uint64_t remainingMillis=tdiffremote-tdifflocal;
-			usleep(remainingMillis*1000);
-		}
-		tlocal=currentTimeMillis();
-		prevT_local=tlocal;
-		prevT_remote=tremote;
-
-
 		if(type_json!=NULL)
 		{
+			session->inactiveBigCycles = 0;
 		   const char * type=json_object_get_string(type_json);
 		   uint32_t msgIndex=json_object_get_int(json_object_object_get(jobj, "msgIndex"));
 		   uint32_t msgTimestamp=json_object_get_int(json_object_object_get(jobj, "msgTimestamp"));
 		   uint32_t msgServerTimestamp=json_object_get_int(json_object_object_get(jobj, "msgServerTimestamp"));
+		   // rfbLog("LOCK timestampLock... %"PRIu32"\n", (uint32_t)currentTimeMillis());
 		   pthread_mutex_lock(&timestampLock);
 		   if(session->nAck<MAX_ACK)
 		   {
@@ -287,6 +270,7 @@ static void processCommand(rrfb_session_t * session, const char * command)
 			   session->nAck++;
 		   }
 		   pthread_mutex_unlock(&timestampLock);
+		   // rfbLog("LOCK timestampLock DONE %"PRIu32"\n", (uint32_t)currentTimeMillis());
 		   if (strcmp(type, "requestFrame") == 0)
 		   {
 			   int32_t index=json_object_get_int(json_object_object_get(jobj, "index"));
@@ -451,13 +435,17 @@ static void * inputThread(void * ptr)
 			case '\r': // ignore
 				break;
 			case '\n': // execute command
+				// rfbLog("read last byte of command: %"PRIu32" %"PRIu32"\n", at, (uint32_t)currentTimeMillis());
 				inputBuffer[at]=0;
 				processCommand(session, inputBuffer);
 				//rfbLog("command: %s\n", inputBuffer);
 				at=0;
 				break;
 			default:
-				// rfbLog("read byte: %c\n", ch);
+				/*if(at==0)
+				{
+					rfbLog("read first byte of command: %c %"PRIu32"\n", ch, (uint32_t)currentTimeMillis());
+				}*/
 				if(at<sizeof(inputBuffer)-1)
 				{
 					inputBuffer[at]=ch;
@@ -589,6 +577,7 @@ void main(int argc, char ** argv)
 	session.inactiveCycles = 0;
 	session.targetmsPeriod = 100;
 	session.nAck=0;
+	session.inactiveBigCycles=0;
 	if(session.dpy==NULL)
 	{
 		rfbLog("XOpenDisplay_wr error\n");
@@ -835,8 +824,12 @@ void main(int argc, char ** argv)
 			session.inactiveCycles ++;
 			if(session.inactiveCycles>50)
 			{
-				fprintf(stderr, "client stalled: does not send request frame for 50 cycles\n");
+				fprintf(stderr, "client stalled: does not send request frame for 50 cycles inactive big cycles: %"PRIu32"\n", session.inactiveBigCycles);
 				session.inactiveCycles = 0;
+				/*if(session.inactiveBigCycles>10)
+				{
+					exit(0);
+				}*/
 			}
 		}
         // Let logs always be readable
