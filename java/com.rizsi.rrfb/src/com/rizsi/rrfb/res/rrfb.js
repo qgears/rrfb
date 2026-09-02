@@ -10,6 +10,8 @@ cursorImage.src="../res/cursor.png";
 
 var nframe = 3;
 var targetmsPeriod = 100;
+var disableInputSwitch = null;
+var floatMenu = null;
 
 pointerScreenX=0;
 pointerScreenY=0;
@@ -243,9 +245,26 @@ updateNframeView = function()
 	fm.innerHTML = ""+targetmsPeriod;
 }
 
+function isOverFloatMenu() {
+  return floatMenu.matches(":hover");
+}
 
 window.addEventListener("load",()=>{
 	 var fm=document.getElementById("floatmenu");
+	 floatMenu = fm;
+	 disableInputSwitch = document.getElementById("floatmenu_disableinput");
+	 disableInputSwitch.checked = params.get('disableInput') === "true";
+	 disableInputSwitch.addEventListener("change", ()=>{
+		const url = new URL(window.location);
+		if(disableInputSwitch.checked)
+		{
+			url.searchParams.set("disableInput", disableInputSwitch.checked);
+		}else
+		{
+			url.searchParams.delete("disableInput");
+		}
+		history.pushState({}, "", url);
+	 });
 	 document.getElementById("floatmenu_hide").addEventListener("click", e=>{
 	  globalDisableMouse=true;
 	  setTimeout(()=>{
@@ -270,7 +289,7 @@ window.addEventListener("load",()=>{
 	   updateNframeView();
 	  });
 	fm.style.display='none';
-	fm.addEventListener("mousemove", e=>{
+/*	fm.addEventListener("mousemove", e=>{
 	    e.stopPropagation();e.preventDefault();
 	});
 	fm.addEventListener("mousedown", e=>{
@@ -279,13 +298,14 @@ window.addEventListener("load",()=>{
 	fm.addEventListener("mouseup", e=>{
 	    e.stopPropagation();e.preventDefault();
 	});
+	*/
     updateNframeView();
   });
 
 
 rrfbSendInputEvent=function(e, msg)
 {
-	if(!globalDisableMouse)
+	if(!globalDisableMouse && !disableInputSwitch.checked)
 	{
 		rrfbSendMessage(msg);
 	}
@@ -345,15 +365,29 @@ document.addEventListener("keypressed", e=>{
 	}
 	});
 document.addEventListener("mousemove", e=>{
-	rrfbSendInputEvent(e, {type: "mousemove", x: e.clientX, y: e.clientY});
+	if(!isOverFloatMenu())
+	{
+	 rrfbSendInputEvent(e, {type: "mousemove", x: e.clientX, y: e.clientY});
+	}
 	});
 document.addEventListener("mousedown", e=>{
-	rrfbSendInputEvent(e, {type: "mousedown", x: e.clientX, y: e.clientY, button:e.button});
+	if(!isOverFloatMenu())
+	{
+	 rrfbSendInputEvent(e, {type: "mousedown", x: e.clientX, y: e.clientY, button:e.button});
+	}
 });
 document.addEventListener("mouseup", e=>{
-	rrfbSendInputEvent(e, {type: "mouseup", x: e.clientX, y: e.clientY, button:e.button});
+	if(!isOverFloatMenu())
+	{
+	 rrfbSendInputEvent(e, {type: "mouseup", x: e.clientX, y: e.clientY, button:e.button});
+	}
 });
-document.addEventListener("click", e=>{console.info(e);e.stopPropagation();e.preventDefault();});
+document.addEventListener("click", e=>{
+	if(!isOverFloatMenu())
+	{
+	 console.info(e);e.stopPropagation();e.preventDefault();
+	}
+	});
 document.addEventListener("dblclick", e=>{console.info(e);e.stopPropagation();e.preventDefault();});
 document.addEventListener('contextmenu', event => event.preventDefault());
 document.addEventListener("wheel", e => {

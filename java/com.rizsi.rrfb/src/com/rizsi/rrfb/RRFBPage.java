@@ -15,6 +15,6 @@ public class RRFBPage extends SimpleHttpPage {
 	}
 	@Override
 	public void writeBody() {
-		write("<div id=\"floatmenu\" class=\"floating-menu\">\n<h3>RRFB Floating menu</h3>\nF1 makes the menu visible\n<button id=\"floatmenu_hide\">Hide</button>\nFrames look forward: <span id=\"nframe\"></span> <button id=\"nframep\">+</button><button id=\"nframem\">-</button>\nTarget period time ms: <span id=\"targetms\"></span> <button id=\"targetmsp\">+</button><button id=\"targetmsm\">-</button>\n\n</div>\n<canvas id=\"myCanvas\" width=\"1920\" height=\"1080\"></canvas>\n<a href='../res/rrfb.js'>rrfb.js</a>");
+		write("<div id=\"floatmenu\" class=\"floating-menu\">\n<h3>RRFB Floating menu</h3>\nF1 makes the menu visible\n<button id=\"floatmenu_hide\">Hide</button>\n<label>\n  <input type=\"checkbox\" id=\"floatmenu_disableinput\" name=\"floatmenu_disableinput\" value=\"yes\">\n  Disable input\n</label>\nFrames look forward: <span id=\"nframe\"></span> <button id=\"nframep\">+</button><button id=\"nframem\">-</button>\nTarget period time ms: <span id=\"targetms\"></span> <button id=\"targetmsp\">+</button><button id=\"targetmsm\">-</button>\n\n</div>\n<canvas id=\"myCanvas\" width=\"1920\" height=\"1080\"></canvas>\n<a href='../res/rrfb.js'>rrfb.js</a>");
 	}
 }

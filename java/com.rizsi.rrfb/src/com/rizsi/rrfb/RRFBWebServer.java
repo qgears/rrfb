@@ -7,6 +7,7 @@ import java.util.List;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.session.DefaultSessionIdManager;
+import org.eclipse.jetty.websocket.api.WebSocketListener;
 
 import com.rizsi.rrfb.res.Res;
 
@@ -69,7 +70,7 @@ public class RRFBWebServer {
 		{
 			WebSocketSimple wss=new WebSocketSimple(new WebSocketCreator() {
 				@Override
-				public Object createWebSocket(WebSocketCreationContext c) {
+				public WebSocketListener createWebSocket(WebSocketCreationContext c) {
 					return new RRFBWs(args, args.allConnections.get(name));
 				}
 			});
